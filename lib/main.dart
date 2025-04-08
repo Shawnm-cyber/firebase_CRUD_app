@@ -128,3 +128,81 @@ class _TaskScreenState extends State<TaskScreen> {
         .doc(slot)
         .set({'tasks': currentTasks});
   }
+   Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut();
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => AuthScreen()));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Nested Task List'),
+        actions: [IconButton(icon: Icon(Icons.logout), onPressed: _logout)],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            TextField(controller: dayController, decoration: InputDecoration(labelText: 'Day (e.g. Tuesday)')),
+            TextField(controller: timeframeController, decoration: InputDecoration(labelText: 'Timeframe (e.g. 2 PM - 4 PM)')),
+            TextField(controller: taskController, decoration: InputDecoration(labelText: 'Task Name')),
+            ElevatedButton(onPressed: _addTask, child: Text('Add Task')),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('users').doc(user.uid).collection('tasks').snapshots(),
+                builder: (context, daySnapshot) {
+                  if (!daySnapshot.hasData) return Center(child: CircularProgressIndicator());
+                  final days = daySnapshot.data!.docs;
+                  return ListView(
+                    children: days.map((dayDoc) {
+                      final day = dayDoc.id;
+                      return StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(user.uid)
+                            .collection('tasks')
+                            .doc(day)
+                            .collection('slots')
+                            .snapshots(),
+                        builder: (context, slotSnapshot) {
+                          if (!slotSnapshot.hasData) return SizedBox();
+                          final slots = slotSnapshot.data!.docs;
+                          return ExpansionTile(
+                            title: Text(day, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                            children: slots.map((slotDoc) {
+                              final slot = slotDoc.id;
+                              final tasks = List<Map<String, dynamic>>.from(slotDoc['tasks'] ?? []);
+                              return ExpansionTile(
+                                title: Text(slot, style: TextStyle(fontSize: 16)),
+                                children: tasks.asMap().entries.map((entry) {
+                                  final index = entry.key;
+                                  final task = entry.value;
+                                  return ListTile(
+                                    title: Text(task['name']),
+                                    leading: Checkbox(
+                                      value: task['completed'],
+                                      onChanged: (val) => _toggleTask(day, slot, index, val!, tasks),
+                                    ),
+                                    trailing: IconButton(
+                                      icon: Icon(Icons.delete),
+                                      onPressed: () => _deleteTask(day, slot, index, tasks),
+                                    ),
+                                  );
+                                }).toList(),
+                              );
+                            }).toList(),
+                          );
+                        },
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
