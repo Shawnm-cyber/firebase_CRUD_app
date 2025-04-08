@@ -105,3 +105,26 @@ class _TaskScreenState extends State<TaskScreen> {
 
     taskController.clear();
   }
+  Future<void> _toggleTask(String day, String slot, int index, bool newValue, List<dynamic> currentTasks) async {
+    currentTasks[index]['completed'] = newValue;
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('tasks')
+        .doc(day)
+        .collection('slots')
+        .doc(slot)
+        .set({'tasks': currentTasks});
+  }
+
+  Future<void> _deleteTask(String day, String slot, int index, List<dynamic> currentTasks) async {
+    currentTasks.removeAt(index);
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('tasks')
+        .doc(day)
+        .collection('slots')
+        .doc(slot)
+        .set({'tasks': currentTasks});
+  }
