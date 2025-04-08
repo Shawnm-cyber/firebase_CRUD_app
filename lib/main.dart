@@ -74,3 +74,34 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 }
+// ---------------------- TASK SCREEN ----------------------
+class TaskScreen extends StatefulWidget {
+  @override
+  _TaskScreenState createState() => _TaskScreenState();
+}
+
+class _TaskScreenState extends State<TaskScreen> {
+  final taskController = TextEditingController();
+  final timeframeController = TextEditingController();
+  final dayController = TextEditingController();
+  final user = FirebaseAuth.instance.currentUser!;
+
+  Future<void> _addTask() async {
+    if (taskController.text.isEmpty || dayController.text.isEmpty || timeframeController.text.isEmpty) return;
+
+    final docRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('tasks')
+        .doc(dayController.text);
+
+    await docRef.set({}, SetOptions(merge: true));
+
+    await docRef.collection('slots').doc(timeframeController.text).set({
+      'tasks': FieldValue.arrayUnion([
+        {'name': taskController.text, 'completed': false}
+      ])
+    }, SetOptions(merge: true));
+
+    taskController.clear();
+  }
